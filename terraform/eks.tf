@@ -30,10 +30,12 @@ module "eks" {
 # Data sources to allow helm provider to authenticate after cluster creation
 data "aws_eks_cluster" "cluster" {
   name = module.eks.cluster_name
+  depends_on = [module.eks]
 }
 
 data "aws_eks_cluster_auth" "cluster" {
   name = module.eks.cluster_name
+  depends_on = [module.eks]
 }
 
 ### FILE: outputs.tf

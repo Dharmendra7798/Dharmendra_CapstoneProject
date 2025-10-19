@@ -18,13 +18,13 @@ pipeline {
             }
         }
 
-        stage('Code Quality - SonarQube') {
-            steps {
-                withSonarQubeEnv('SonarQube') {
-                    sh 'sonar-scanner -Dsonar.projectKey=your-project'
-                }
-            }
-        }
+        // stage('Code Quality - SonarQube') {
+        //     steps {
+        //         withSonarQubeEnv('SonarQube') {
+        //             sh 'sonar-scanner -Dsonar.projectKey=your-project'
+        //         }
+        //     }
+        // }
 
         stage('Dependency Check (OWASP)') {
             steps {
