@@ -11,9 +11,9 @@ mkdir -p $OUTPUT_DIR
 if [ ! -f "./dependency-check/bin/dependency-check.sh" ]; then
   echo "⬇️ Downloading OWASP Dependency Check..."
   wget https://github.com/jeremylong/DependencyCheck/releases/download/v9.1.0/dependency-check-9.1.0-release.zip -O dc.zip
-  unzip -q dc.zip
-  mv dependency-check ./dependency-check
-  rm -f dc.zip
+  unzip -q dc.zip -d ./dependency-check-tmp
+  mv ./dependency-check-tmp/dependency-check ./dependency-check
+  rm -rf ./dependency-check-tmp dc.zip
 fi
 
 # Run dependency check (adjust for your language stack)
