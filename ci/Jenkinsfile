@@ -28,13 +28,13 @@ pipeline {
 
         stage('Dependency Check (OWASP)') {
             steps {
-                sh './scripts/dependency-check.sh'
+                sh './ci/scripts/dependency-check.sh'
             }
         }
 
         stage('File Security Scan') {
             steps {
-                sh './scripts/file-scan.sh'
+                sh './ci/scripts/file-scan.sh'
             }
         }
 
@@ -52,13 +52,13 @@ pipeline {
 
         stage('Trivy Scan - Frontend') {
             steps {
-                sh "./scripts/trivy-scan.sh $FRONTEND_TAG"
+                sh "./ci/scripts/trivy-scan.sh $FRONTEND_TAG"
             }
         }
 
         stage('Trivy Scan - Backend') {
             steps {
-                sh "./scripts/trivy-scan.sh $BACKEND_TAG"
+                sh "./ci/scripts/trivy-scan.sh $BACKEND_TAG"
             }
         }
 
@@ -74,7 +74,7 @@ pipeline {
 
         stage('Update Manifests in GitHub') {
             steps {
-                sh "./scripts/update-manifests.sh $FRONTEND_TAG $BACKEND_TAG"
+                sh "./ci/scripts/update-manifests.sh $FRONTEND_TAG $BACKEND_TAG"
             }
         }
     }
