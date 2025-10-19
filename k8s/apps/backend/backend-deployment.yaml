@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: backend
-          image: your-dockerhub-username/backend-app:latest
+          image: kishan7798/backend-app:16:latest
           ports:
             - containerPort: 8080
           envFrom:
