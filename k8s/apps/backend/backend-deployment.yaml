@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: backend
-          image: kishan7798/backend-app:16:latest
+          image: kishan7798/backend-app:17
           ports:
             - containerPort: 8080
           envFrom:

@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: kishan7798/frontend-app:16:latest
+          image: kishan7798/frontend-app:17
           ports:
             - containerPort: 3000
           env:
