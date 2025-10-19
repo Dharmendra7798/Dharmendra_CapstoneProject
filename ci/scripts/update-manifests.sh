@@ -13,6 +13,6 @@ sed -i "s|image: .*backend.*|image: $BACKEND_IMAGE:latest|" ./k8s/apps/backend-d
 # Commit and push
 git config user.email "jenkins@example.com"
 git config user.name "Jenkins CI"
-git add ./k8s/*.yaml
+git add ./k8s/apps/*.yaml
 git commit -m "Update frontend & backend images to latest"
 git push origin main
