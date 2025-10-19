@@ -74,7 +74,15 @@ pipeline {
 
         stage('Update Manifests in GitHub') {
             steps {
-                sh "./ci/scripts/update-manifests.sh $FRONTEND_TAG $BACKEND_TAG"
+                withCredentials([usernamePassword(
+                    credentialsId: 'github-credentials',
+                    usernameVariable: 'GIT_USER',
+                    passwordVariable: 'GIT_PASS'
+                )]) {
+                    sh """
+                        ./ci/scripts/update-manifests.sh $FRONTEND_TAG $BACKEND_TAG $GIT_USER $GIT_PASS
+                    """
+                }
             }
         }
     }
