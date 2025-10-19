@@ -17,7 +17,7 @@ git config user.email "jenkins@example.com"
 git config user.name "Jenkins CI"
 
 # Stage all YAMLs recursively
-git add ./k8s/apps/**/*.{yaml,yml}
+git add .
 
 # Commit only if there are changes
 git diff --cached --quiet || git commit -m "Update frontend & backend images to latest"
