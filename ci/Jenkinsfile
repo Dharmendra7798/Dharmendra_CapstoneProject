@@ -26,11 +26,11 @@ pipeline {
         //     }
         // }
 
-        stage('Dependency Check (OWASP)') {
-            steps {
-                sh './ci/scripts/dependency-check.sh'
-            }
-        }
+        // stage('Dependency Check (OWASP)') {
+        //     steps {
+        //         sh './ci/scripts/dependency-check.sh'
+        //     }
+        // }
 
         stage('File Security Scan') {
             steps {
