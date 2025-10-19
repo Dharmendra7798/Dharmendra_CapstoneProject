@@ -1,0 +1,90 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials')
+        FRONTEND_REPO = 'kishan7798/frontend-app'
+        BACKEND_REPO  = 'kishan7798/backend-app'
+        GIT_CREDENTIALS  = credentials('github-credentials')
+        FRONTEND_TAG = "${env.FRONTEND_REPO}:${env.BUILD_NUMBER}"
+        BACKEND_TAG  = "${env.BACKEND_REPO}:${env.BUILD_NUMBER}"
+
+    }
+
+    stages {
+        stage('Checkout Code') {
+            steps {
+                git branch: 'main', url: 'https://github.com/Dharmendra7798/Dharmendra_CapstoneProject.git'
+            }
+        }
+
+        stage('Code Quality - SonarQube') {
+            steps {
+                withSonarQubeEnv('SonarQube') {
+                    sh 'sonar-scanner -Dsonar.projectKey=your-project'
+                }
+            }
+        }
+
+        stage('Dependency Check (OWASP)') {
+            steps {
+                sh './scripts/dependency-check.sh'
+            }
+        }
+
+        stage('File Security Scan') {
+            steps {
+                sh './scripts/file-scan.sh'
+            }
+        }
+
+        stage('Docker Build - Frontend') {
+            steps {
+                sh "docker build -t $FRONTEND_TAG ./Application-Code/frontend"
+            }
+        }
+
+        stage('Docker Build - Backend') {
+            steps {
+                sh "docker build -t $BACKEND_TAG ./Application-Code/backend"
+            }
+        }
+
+        stage('Trivy Scan - Frontend') {
+            steps {
+                sh "./scripts/trivy-scan.sh $FRONTEND_TAG"
+            }
+        }
+
+        stage('Trivy Scan - Backend') {
+            steps {
+                sh "./scripts/trivy-scan.sh $BACKEND_TAG"
+            }
+        }
+
+        stage('Push Docker Images') {
+            steps {
+                sh '''
+                    echo \$DOCKERHUB_CREDENTIALS_PSW | docker login -u \$DOCKERHUB_CREDENTIALS_USR --password-stdin
+                    docker push $FRONTEND_TAG
+                    docker push $BACKEND_TAG
+                '''
+            }
+        }
+
+        stage('Update Manifests in GitHub') {
+            steps {
+                sh "./scripts/update-manifests.sh $FRONTEND_TAG $BACKEND_TAG"
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'CI Pipeline completed successfully!'
+        }
+        failure {
+            echo 'CI Pipeline failed.'
+        }
+    }
+}

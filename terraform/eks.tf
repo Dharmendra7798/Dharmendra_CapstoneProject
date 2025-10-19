@@ -4,12 +4,15 @@ module "eks" {
   version         = "~> 19.0"
 
   cluster_name    = var.cluster_name
-  cluster_version = "1.27"
+  cluster_version = "1.29"
 
   vpc_id     = aws_vpc.this.id
-  subnet_ids = concat(keys(aws_subnet.public), keys(aws_subnet.private))
+  subnet_ids = concat(
+    [for s in aws_subnet.public : s.id],
+    [for s in aws_subnet.private : s.id]
+  )
 
-  node_groups = {
+  eks_managed_node_groups = {
     default = {
       desired_capacity = 2
       max_capacity     = 3
@@ -26,16 +29,16 @@ module "eks" {
 
 # Data sources to allow helm provider to authenticate after cluster creation
 data "aws_eks_cluster" "cluster" {
-  name = module.eks.cluster_id
+  name = module.eks.cluster_name
 }
 
 data "aws_eks_cluster_auth" "cluster" {
-  name = module.eks.cluster_id
+  name = module.eks.cluster_name
 }
 
 ### FILE: outputs.tf
 output "cluster_name" {
-  value = module.eks.cluster_id
+  value = module.eks.cluster_name
 }
 
 output "cluster_endpoint" {
