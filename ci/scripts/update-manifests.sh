@@ -7,10 +7,10 @@ GIT_USER=$3
 GIT_PASS=$4
 
 # Update frontend deployment
-sed -i "s|image: .*frontend.*|image: $FRONTEND_IMAGE|" ./k8s/apps/frontend/frontend-deployment.yaml
+sed -i "s|image: .*frontend.*|image: $FRONTEND_IMAGE|" ./k8s/apps/frontend/deployment.yaml
 
 # Update backend deployment
-sed -i "s|image: .*backend.*|image: $BACKEND_IMAGE|" ./k8s/apps/backend/backend-deployment.yaml
+sed -i "s|image: .*backend.*|image: $BACKEND_IMAGE|" ./k8s/apps/backend/deployment.yaml
 
 # Commit and push
 git config user.email "jenkins@example.com"
