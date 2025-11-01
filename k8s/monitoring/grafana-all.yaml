@@ -1,4 +1,6 @@
----
+# ================================
+# GRAFANA PERSISTENT VOLUME
+# ================================
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -14,6 +16,9 @@ spec:
   hostPath:
     path: /mnt/data/grafana
 ---
+# ================================
+# GRAFANA PVC
+# ================================
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -28,6 +33,9 @@ spec:
     requests:
       storage: 1Gi
 ---
+# ================================
+# GRAFANA DEPLOYMENT
+# ================================
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -45,23 +53,37 @@ spec:
       labels:
         app: grafana
     spec:
+      securityContext:
+        runAsUser: 472
+        runAsGroup: 472
+        fsGroup: 472
       containers:
         - name: grafana
           image: grafana/grafana:latest
           ports:
             - containerPort: 3000
+          env:
+            - name: GF_SECURITY_ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: grafana-admin-secret
+                  key: admin-user
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: grafana-admin-secret
+                  key: admin-password
           volumeMounts:
             - name: grafana-storage
               mountPath: /var/lib/grafana
-          securityContext:
-            runAsUser: 472
-            runAsGroup: 472
-            fsGroup: 472
       volumes:
         - name: grafana-storage
           persistentVolumeClaim:
             claimName: grafana-pvc
 ---
+# ================================
+# GRAFANA SERVICE (NodePort 31000)
+# ================================
 apiVersion: v1
 kind: Service
 metadata:
@@ -75,7 +97,7 @@ spec:
     app: grafana
   ports:
     - name: http
-      port: 4000        # internal cluster port
-      targetPort: 3000  # Grafana's container port
-      nodePort: 30300   # external NodePort
+      port: 4000          # internal cluster port
+      targetPort: 3000    # container port
+      nodePort: 31000     # valid NodePort range
       protocol: TCP
