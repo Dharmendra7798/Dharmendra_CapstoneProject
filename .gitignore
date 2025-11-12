@@ -1,0 +1,14 @@
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.exe
+
+# Logs
+*.log
+
+# System
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
