@@ -15,6 +15,9 @@ pipeline {
 
         // SonarQube token
         SONARQUBE_TOKEN = credentials('sonarqube-auth-token')
+
+        // Docker daemon URL for Jenkins container
+        DOCKER_HOST = "tcp://host.docker.internal:2375"
     }
 
     stages {
@@ -56,16 +59,13 @@ pipeline {
 
         stage('File Scan') {
             steps {
-                script {
-                    echo "🧾 Scanning for sensitive files..."
-                    sh '''
-                        echo "Checking for .env files..."
-                        find Application-Code -type f -name ".env" || echo "No .env files found."
+                sh '''
+                    echo "Checking for .env files..."
+                    find Application-Code -type f -name ".env" || echo "No .env files found."
 
-                        echo "Checking for AWS access keys..."
-                        grep -rnE "AKIA[0-9A-Z]{16}" Application-Code || echo "No AWS keys found."
-                    '''
-                }
+                    echo "Checking for AWS access keys..."
+                    grep -rnE "AKIA[0-9A-Z]{16}" Application-Code || echo "No AWS keys found."
+                '''
             }
         }
 
@@ -76,13 +76,13 @@ pipeline {
                     env.BACKEND_TAG  = "${BACKEND_REPO}:${GIT_COMMIT}"
                     env.FRONTEND_TAG = "${FRONTEND_REPO}:${GIT_COMMIT}"
 
-                    echo "🐳 Building Docker images..."
+                    echo "🐳 Building Docker images using Docker Desktop..."
                     sh """
                         cd ${WORKSPACE}/Application-Code/backend
-                        docker build -t ${BACKEND_TAG} .
+                        docker -H ${DOCKER_HOST} build -t ${BACKEND_TAG} .
 
                         cd ${WORKSPACE}/Application-Code/frontend
-                        docker build -t ${FRONTEND_TAG} .
+                        docker -H ${DOCKER_HOST} build -t ${FRONTEND_TAG} .
                     """
                 }
             }
@@ -91,11 +91,11 @@ pipeline {
         stage('Image Vulnerability Scan (Trivy)') {
             steps {
                 script {
-                    echo "🛡️ Scanning Docker images with Trivy..."
+                    echo "🛡️ Running Trivy scan..."
                     sh '''
-                        sudo apt-get update -y && sudo apt-get install -y wget apt-transport-https gnupg lsb-release
-
                         if ! command -v trivy > /dev/null; then
+                            sudo apt-get update -y
+                            sudo apt-get install -y wget apt-transport-https gnupg lsb-release
                             wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo gpg --dearmor -o /usr/share/keyrings/trivy.gpg
                             echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/trivy.list
                             sudo apt-get update -y && sudo apt-get install -y trivy
@@ -104,14 +104,10 @@ pipeline {
                         mkdir -p ${WORKSPACE}/reports
 
                         echo "Scanning backend image..."
-                        trivy image --exit-code 0 --severity HIGH,CRITICAL \
-                            --format cyclonedx \
-                            --output ${WORKSPACE}/reports/backend-trivy-report.json ${BACKEND_TAG} || true
+                        trivy image --format json -o ${WORKSPACE}/reports/backend-trivy-report.json ${BACKEND_TAG} || true
 
                         echo "Scanning frontend image..."
-                        trivy image --exit-code 0 --severity HIGH,CRITICAL \
-                            --format cyclonedx \
-                            --output ${WORKSPACE}/reports/frontend-trivy-report.json ${FRONTEND_TAG} || true
+                        trivy image --format json -o ${WORKSPACE}/reports/frontend-trivy-report.json ${FRONTEND_TAG} || true
                     '''
                 }
             }
@@ -119,45 +115,35 @@ pipeline {
 
         stage('Login to Docker Hub') {
             steps {
-                script {
-                    echo "🔐 Logging in to Docker Hub..."
-                    sh """
-                        echo \$DOCKERHUB_CREDENTIALS_PSW | docker login -u \$DOCKERHUB_CREDENTIALS_USR --password-stdin
-                    """
-                }
+                sh """
+                    echo \$DOCKERHUB_CREDENTIALS_PSW | docker -H ${DOCKER_HOST} login -u \$DOCKERHUB_CREDENTIALS_USR --password-stdin
+                """
             }
         }
 
         stage('Push Docker Images to Docker Hub') {
             steps {
-                script {
-                    echo "📤 Pushing Docker images to Docker Hub..."
-                    sh """
-                        docker push ${BACKEND_TAG}
-                        docker push ${FRONTEND_TAG}
-                    """
-                }
+                sh """
+                    docker -H ${DOCKER_HOST} push ${BACKEND_TAG}
+                    docker -H ${DOCKER_HOST} push ${FRONTEND_TAG}
+                """
             }
         }
 
         stage('Deploy to Kubernetes') {
             steps {
-                script {
-                    echo "🚀 Deploying to Kubernetes cluster..."
-                    sh '''
-                        echo "Applying Kubernetes manifests..."
-                        kubectl apply -f ${WORKSPACE}/k8s/apps/backend/backend-deployment.yaml
-                        kubectl apply -f ${WORKSPACE}/k8s/apps/backend/backend-service.yaml
-                        kubectl apply -f ${WORKSPACE}/k8s/apps/frontend/frontend-deployment.yaml
-                        kubectl apply -f ${WORKSPACE}/k8s/apps/frontend/frontend-service.yaml
-                    '''
-                }
+                sh '''
+                    echo "🚀 Deploying to EKS..."
+                    kubectl apply -f ${WORKSPACE}/k8s/apps/backend/backend-deployment.yaml
+                    kubectl apply -f ${WORKSPACE}/k8s/apps/backend/backend-service.yaml
+                    kubectl apply -f ${WORKSPACE}/k8s/apps/frontend/frontend-deployment.yaml
+                    kubectl apply -f ${WORKSPACE}/k8s/apps/frontend/frontend-service.yaml
+                '''
             }
         }
 
         stage('Archive Reports') {
             steps {
-                echo "📊 Archiving all reports..."
                 archiveArtifacts artifacts: 'reports/**/*.json', fingerprint: true
             }
         }
