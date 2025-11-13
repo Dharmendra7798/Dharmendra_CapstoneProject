@@ -2,12 +2,12 @@ pipeline {
     agent any
 
     environment {
-        AWS_REGION        = "ap-south-1"
-        AWS_ACCOUNT_ID    = "241913669350"
-        ECR_BACKEND_REPO  = "capstone/backend-img"
-        ECR_FRONTEND_REPO = "capstone/frontend-img"
-        ECR_BACKEND_URI   = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_BACKEND_REPO}"
-        ECR_FRONTEND_URI  = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_FRONTEND_REPO}"
+        // Docker Hub Credentials
+        DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials')
+        FRONTEND_REPO = 'kishan7798/frontend-app'
+        BACKEND_REPO  = 'kishan7798/backend-app'
+
+        // Docker Image tags (commit-based)
         SONARQUBE_SERVER  = "SonarQubeServer"
         SONARQUBE_SCANNER = "SonarQubeScanner"
     }
@@ -99,19 +99,19 @@ pipeline {
             steps {
                 script {
                     def GIT_COMMIT   = sh(returnStdout: true, script: "git rev-parse --short HEAD").trim()
-                    env.BACKEND_TAG  = "backend-${GIT_COMMIT}"
-                    env.FRONTEND_TAG = "frontend-${GIT_COMMIT}"
+                    env.BACKEND_TAG  = "${BACKEND_REPO}:${GIT_COMMIT}"
+                    env.FRONTEND_TAG = "${FRONTEND_REPO}:${GIT_COMMIT}"
 
                     echo "🐳 Building Docker images:"
-                    echo "Backend -> ${ECR_BACKEND_URI}:${BACKEND_TAG}"
-                    echo "Frontend -> ${ECR_FRONTEND_URI}:${FRONTEND_TAG}"
+                    echo "Backend -> ${BACKEND_TAG}"
+                    echo "Frontend -> ${FRONTEND_TAG}"
 
                     sh """
                         cd ${WORKSPACE}/Application-Code/backend
-                        docker build -t ${ECR_BACKEND_URI}:${BACKEND_TAG} .
+                        docker build -t ${BACKEND_TAG} .
 
                         cd ${WORKSPACE}/Application-Code/frontend
-                        docker build -t ${ECR_FRONTEND_URI}:${FRONTEND_TAG} .
+                        docker build -t ${FRONTEND_TAG} .
                     """
                 }
             }
@@ -134,37 +134,34 @@ pipeline {
 
                         echo "Scanning backend image..."
                         trivy image --exit-code 0 --severity HIGH,CRITICAL --format html \\
-                            -o ${WORKSPACE}/reports/backend-trivy-report.html ${ECR_BACKEND_URI}:${BACKEND_TAG} || true
+                            -o ${WORKSPACE}/reports/backend-trivy-report.html ${BACKEND_TAG} || true
 
                         echo "Scanning frontend image..."
                         trivy image --exit-code 0 --severity HIGH,CRITICAL --format html \\
-                            -o ${WORKSPACE}/reports/frontend-trivy-report.html ${ECR_FRONTEND_URI}:${FRONTEND_TAG} || true
+                            -o ${WORKSPACE}/reports/frontend-trivy-report.html ${FRONTEND_TAG} || true
                     """
                 }
             }
         }
 
-        stage('Login to AWS ECR') {
+        stage('Login to Docker Hub') {
             steps {
                 script {
-                    echo "🔐 Logging in to AWS ECR..."
-                    withAWS(region: "${AWS_REGION}", credentials: 'aws-credentials') {
-                        sh '''
-                            aws ecr get-login-password --region ${AWS_REGION} | \
-                            docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
-                        '''
-                    }
+                    echo "🔐 Logging in to Docker Hub..."
+                    sh """
+                        echo \$DOCKERHUB_CREDENTIALS_PSW | docker login -u \$DOCKERHUB_CREDENTIALS_USR --password-stdin
+                    """
                 }
             }
         }
 
-        stage('Push Docker Images to ECR') {
+        stage('Push Docker Images to Docker Hub') {
             steps {
                 script {
-                    echo "📤 Pushing Docker images to AWS ECR..."
+                    echo "📤 Pushing Docker images to Docker Hub..."
                     sh """
-                        docker push ${ECR_BACKEND_URI}:${BACKEND_TAG}
-                        docker push ${ECR_FRONTEND_URI}:${FRONTEND_TAG}
+                        docker push ${BACKEND_TAG}
+                        docker push ${FRONTEND_TAG}
                     """
                 }
             }
@@ -175,8 +172,8 @@ pipeline {
     post {
         success {
             echo "✅ Successfully built, scanned, and pushed images:"
-            echo "Backend Image: ${ECR_BACKEND_URI}:${BACKEND_TAG}"
-            echo "Frontend Image: ${ECR_FRONTEND_URI}:${FRONTEND_TAG}"
+            echo "Backend Image: ${BACKEND_TAG}"
+            echo "Frontend Image: ${FRONTEND_TAG}"
             cleanWs()
         }
         failure {
