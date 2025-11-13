@@ -5,7 +5,7 @@ metadata:
   namespace: three-tier
 spec:
   serviceName: "mongodb"
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: mongodb
@@ -14,8 +14,6 @@ spec:
       labels:
         app: mongodb
     spec:
-      nodeSelector:
-        role: database
       containers:
       - name: mongodb
         image: mongo:4.4.6
@@ -48,7 +46,7 @@ spec:
       name: mongo-data
     spec:
       accessModes: ["ReadWriteOnce"]
-      storageClassName: gp2
+      storageClassName: ""
       resources:
         requests:
           storage: 1Gi

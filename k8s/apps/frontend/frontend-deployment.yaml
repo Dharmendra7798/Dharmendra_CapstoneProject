@@ -8,11 +8,6 @@ metadata:
     env: demo
 spec:
   replicas: 2
-  strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxSurge: 1
-      maxUnavailable: 0
   selector:
     matchLabels:
       role: frontend
@@ -21,14 +16,12 @@ spec:
       labels:
         role: frontend
     spec:
-      nodeSelector:
-        role: frontend
       containers:
         - name: frontend
-          image: kishan7798/frontend-app:latest  # 👈 Jenkins will update this tag
+          image: kishan7798/frontend-app:c769d20
           imagePullPolicy: Always
           env:
             - name: REACT_APP_BACKEND_URL
-              value: "http://k8s-threetie-mainlb-73c240e86c-1069064422.ap-south-1.elb.amazonaws.com/api/tasks"
+              value: "http://api.three-tier.svc.cluster.local:3500/tasks"
           ports:
             - containerPort: 3000

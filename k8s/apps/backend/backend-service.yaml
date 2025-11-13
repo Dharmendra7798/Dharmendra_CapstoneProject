@@ -4,10 +4,9 @@ metadata:
   name: api
   namespace: three-tier
 spec:
-  type: ClusterIP
   selector:
     role: api
   ports:
     - port: 3500
       targetPort: 3500
-      protocol: TCP
+  type: ClusterIP
