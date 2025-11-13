@@ -13,7 +13,7 @@ pipeline {
         SONARQUBE_SERVER  = "SonarQubeServer"
         SONARQUBE_SCANNER = "SonarQubeScanner"
 
-        // SonarQube authentication token (add this as "sonarqube-auth-token" in Jenkins credentials)
+        // SonarQube token
         SONARQUBE_TOKEN = credentials('sonarqube-auth-token')
     }
 
@@ -31,7 +31,6 @@ pipeline {
                     echo "🔎 Running SonarQube Code Analysis..."
                     def scannerHome = tool name: "${SONARQUBE_SCANNER}", type: 'hudson.plugins.sonar.SonarRunnerInstallation'
 
-                    // Use host.docker.internal (works across all networks)
                     withSonarQubeEnv("${SONARQUBE_SERVER}") {
                         sh """
                             cd ${WORKSPACE}/Application-Code/backend
@@ -94,23 +93,25 @@ pipeline {
                 script {
                     echo "🛡️ Scanning Docker images with Trivy..."
                     sh '''
-                        apt-get update -y && apt-get install -y wget apt-transport-https gnupg lsb-release
+                        sudo apt-get update -y && sudo apt-get install -y wget apt-transport-https gnupg lsb-release
 
                         if ! command -v trivy > /dev/null; then
-                            wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | gpg --dearmor -o /usr/share/keyrings/trivy.gpg
-                            echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | tee /etc/apt/sources.list.d/trivy.list
-                            apt-get update -y && apt-get install -y trivy
+                            wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo gpg --dearmor -o /usr/share/keyrings/trivy.gpg
+                            echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/trivy.list
+                            sudo apt-get update -y && sudo apt-get install -y trivy
                         fi
 
                         mkdir -p ${WORKSPACE}/reports
 
                         echo "Scanning backend image..."
-                        trivy image --exit-code 0 --severity HIGH,CRITICAL --format html \
-                            -o ${WORKSPACE}/reports/backend-trivy-report.html ${BACKEND_TAG} || true
+                        trivy image --exit-code 0 --severity HIGH,CRITICAL \
+                            --format cyclonedx \
+                            --output ${WORKSPACE}/reports/backend-trivy-report.json ${BACKEND_TAG} || true
 
                         echo "Scanning frontend image..."
-                        trivy image --exit-code 0 --severity HIGH,CRITICAL --format html \
-                            -o ${WORKSPACE}/reports/frontend-trivy-report.html ${FRONTEND_TAG} || true
+                        trivy image --exit-code 0 --severity HIGH,CRITICAL \
+                            --format cyclonedx \
+                            --output ${WORKSPACE}/reports/frontend-trivy-report.json ${FRONTEND_TAG} || true
                     '''
                 }
             }
@@ -144,12 +145,6 @@ pipeline {
                 script {
                     echo "🚀 Deploying to Kubernetes cluster..."
                     sh '''
-                        if ! command -v kubectl > /dev/null; then
-                            echo "Installing kubectl..."
-                            curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-                            install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
-                        fi
-
                         echo "Applying Kubernetes manifests..."
                         kubectl apply -f ${WORKSPACE}/k8s/apps/backend/backend-deployment.yaml
                         kubectl apply -f ${WORKSPACE}/k8s/apps/backend/backend-service.yaml
@@ -162,8 +157,8 @@ pipeline {
 
         stage('Archive Reports') {
             steps {
-                echo "📊 Archiving all HTML reports..."
-                archiveArtifacts artifacts: 'reports/**/*.html', fingerprint: true
+                echo "📊 Archiving all reports..."
+                archiveArtifacts artifacts: 'reports/**/*.json', fingerprint: true
             }
         }
     }
