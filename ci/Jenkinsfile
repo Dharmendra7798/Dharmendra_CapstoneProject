@@ -40,7 +40,7 @@ pipeline {
                             ${scannerHome}/bin/sonar-scanner \
                                 -Dsonar.projectKey=backend \
                                 -Dsonar.sources=. \
-                                -Dsonar.host.url=http://192.168.0.105:9000 \
+                                -Dsonar.host.url=http://host.docker.internal:9000 \
                                 -Dsonar.login=${SONARQUBE_TOKEN} \
                                 -Dsonar.projectName="Backend Analysis"
 
@@ -48,7 +48,7 @@ pipeline {
                             ${scannerHome}/bin/sonar-scanner \
                                 -Dsonar.projectKey=frontend \
                                 -Dsonar.sources=. \
-                                -Dsonar.host.url=http://192.168.0.105:9000 \
+                                -Dsonar.host.url=http://host.docker.internal:9000 \
                                 -Dsonar.login=${SONARQUBE_TOKEN} \
                                 -Dsonar.projectName="Frontend Analysis"
                         """
