@@ -2,14 +2,19 @@ pipeline {
     agent any
 
     environment {
-        // Docker Hub Credentials
+        // Docker Hub credentials (configured in Jenkins → Manage Credentials)
         DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials')
+
+        // Docker repositories
         FRONTEND_REPO = 'kishan7798/frontend-app'
         BACKEND_REPO  = 'kishan7798/backend-app'
 
-        // Docker Image tags (commit-based)
+        // SonarQube configuration
         SONARQUBE_SERVER  = "SonarQubeServer"
         SONARQUBE_SCANNER = "SonarQubeScanner"
+
+        // SonarQube authentication token (add this as "sonarqube-auth-token" in Jenkins credentials)
+        SONARQUBE_TOKEN = credentials('sonarqube-auth-token')
     }
 
     stages {
@@ -29,19 +34,19 @@ pipeline {
                     withSonarQubeEnv("${SONARQUBE_SERVER}") {
                         sh """
                             cd ${WORKSPACE}/Application-Code/backend
-                            ${scannerHome}/bin/sonar-scanner \\
-                                -Dsonar.projectKey=backend \\
-                                -Dsonar.sources=. \\
-                                -Dsonar.host.url=${SONAR_HOST_URL} \\
-                                -Dsonar.login=${SONAR_AUTH_TOKEN} \\
+                            ${scannerHome}/bin/sonar-scanner \
+                                -Dsonar.projectKey=backend \
+                                -Dsonar.sources=. \
+                                -Dsonar.host.url=$SONAR_HOST_URL \
+                                -Dsonar.login=$SONARQUBE_TOKEN \
                                 -Dsonar.projectName="Backend Analysis"
 
                             cd ${WORKSPACE}/Application-Code/frontend
-                            ${scannerHome}/bin/sonar-scanner \\
-                                -Dsonar.projectKey=frontend \\
-                                -Dsonar.sources=. \\
-                                -Dsonar.host.url=${SONAR_HOST_URL} \\
-                                -Dsonar.login=${SONAR_AUTH_TOKEN} \\
+                            ${scannerHome}/bin/sonar-scanner \
+                                -Dsonar.projectKey=frontend \
+                                -Dsonar.sources=. \
+                                -Dsonar.host.url=$SONAR_HOST_URL \
+                                -Dsonar.login=$SONARQUBE_TOKEN \
                                 -Dsonar.projectName="Frontend Analysis"
                         """
                     }
@@ -60,20 +65,20 @@ pipeline {
 
                         if [ ! -f dependency-check/bin/dependency-check.sh ]; then
                             echo "Downloading OWASP Dependency Check CLI..."
-                            wget -q https://github.com/jeremylong/DependencyCheck/releases/download/v8.4.0/dependency-check-8.4.0-release.zip
-                            unzip -o dependency-check-8.4.0-release.zip
+                            wget -q https://github.com/jeremylong/DependencyCheck/releases/download/v8.4.2/dependency-check-8.4.2-release.zip
+                            unzip -o dependency-check-8.4.2-release.zip
                         fi
 
                         mkdir -p $WORKSPACE/reports
 
                         echo "Scanning backend dependencies..."
                         cd $WORKSPACE/Application-Code/backend
-                        /opt/dependency-check/dependency-check/bin/dependency-check.sh \\
+                        /opt/dependency-check/dependency-check/bin/dependency-check.sh \
                             --scan . --format HTML --out $WORKSPACE/reports/backend-dependency-report.html || true
 
                         echo "Scanning frontend dependencies..."
                         cd $WORKSPACE/Application-Code/frontend
-                        /opt/dependency-check/dependency-check/bin/dependency-check.sh \\
+                        /opt/dependency-check/dependency-check/bin/dependency-check.sh \
                             --scan . --format HTML --out $WORKSPACE/reports/frontend-dependency-report.html || true
                     '''
                 }
@@ -98,14 +103,11 @@ pipeline {
         stage('Build Docker Images') {
             steps {
                 script {
-                    def GIT_COMMIT   = sh(returnStdout: true, script: "git rev-parse --short HEAD").trim()
+                    def GIT_COMMIT = sh(returnStdout: true, script: "git rev-parse --short HEAD").trim()
                     env.BACKEND_TAG  = "${BACKEND_REPO}:${GIT_COMMIT}"
                     env.FRONTEND_TAG = "${FRONTEND_REPO}:${GIT_COMMIT}"
 
-                    echo "🐳 Building Docker images:"
-                    echo "Backend -> ${BACKEND_TAG}"
-                    echo "Frontend -> ${FRONTEND_TAG}"
-
+                    echo "🐳 Building Docker images..."
                     sh """
                         cd ${WORKSPACE}/Application-Code/backend
                         docker build -t ${BACKEND_TAG} .
@@ -121,25 +123,25 @@ pipeline {
             steps {
                 script {
                     echo "🛡️ Scanning Docker images with Trivy..."
-                    sh """
+                    sh '''
                         apt-get update -y && apt-get install -y wget apt-transport-https gnupg lsb-release
 
                         if ! command -v trivy > /dev/null; then
                             wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | gpg --dearmor -o /usr/share/keyrings/trivy.gpg
-                            echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb \$(lsb_release -sc) main" | tee /etc/apt/sources.list.d/trivy.list
+                            echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | tee /etc/apt/sources.list.d/trivy.list
                             apt-get update -y && apt-get install -y trivy
                         fi
 
                         mkdir -p ${WORKSPACE}/reports
 
                         echo "Scanning backend image..."
-                        trivy image --exit-code 0 --severity HIGH,CRITICAL --format html \\
+                        trivy image --exit-code 0 --severity HIGH,CRITICAL --format html \
                             -o ${WORKSPACE}/reports/backend-trivy-report.html ${BACKEND_TAG} || true
 
                         echo "Scanning frontend image..."
-                        trivy image --exit-code 0 --severity HIGH,CRITICAL --format html \\
+                        trivy image --exit-code 0 --severity HIGH,CRITICAL --format html \
                             -o ${WORKSPACE}/reports/frontend-trivy-report.html ${FRONTEND_TAG} || true
-                    """
+                    '''
                 }
             }
         }
@@ -167,16 +169,35 @@ pipeline {
             }
         }
 
+        stage('Deploy to Kubernetes') {
+            steps {
+                script {
+                    echo "🚀 Deploying to Kubernetes cluster..."
+                    sh '''
+                        if ! command -v kubectl > /dev/null; then
+                            echo "Installing kubectl..."
+                            curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+                            install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+                        fi
+
+                        # Apply K8s manifests
+                        kubectl apply -f ${WORKSPACE}/k8s/apps/backend-deployment.yaml
+                        kubectl apply -f ${WORKSPACE}/k8s/apps/backend-service.yaml
+                        kubectl apply -f ${WORKSPACE}/k8s/apps/frontend-deployment.yaml
+                        kubectl apply -f ${WORKSPACE}/k8s/apps/frontend-service.yaml
+                    '''
+                }
+            }
+        }
     }
 
     post {
         success {
-            echo "✅ Successfully built, scanned, and pushed images:"
+            echo "✅ Successfully built, scanned, pushed, and deployed!"
             echo "Backend Image: ${BACKEND_TAG}"
             echo "Frontend Image: ${FRONTEND_TAG}"
             cleanWs()
         }
-        
         failure {
             echo "❌ Build failed! Check Jenkins console output for details."
         }
