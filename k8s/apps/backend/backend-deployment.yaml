@@ -21,11 +21,9 @@ spec:
       labels:
         role: api
     spec:
-      nodeSelector:
-        role: backend
       containers:
         - name: api
-          image: kishan7798/backend-app:latest  # 👈 Jenkins will update this tag
+          image: kishan7798/backend-app:c769d20   # Jenkins will update this
           imagePullPolicy: Always
           env:
             - name: MONGO_CONN_STR
