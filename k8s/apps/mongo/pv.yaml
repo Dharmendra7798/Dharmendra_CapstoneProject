@@ -8,6 +8,8 @@ spec:
   volumeMode: Filesystem
   accessModes:
     - ReadWriteOnce
-  hostPath:
-    path: /data/db
+  storageClassName: gp2
   persistentVolumeReclaimPolicy: Retain
+  csi:
+    driver: ebs.csi.aws.com
+    volumeHandle: vol-0e2aa7b6d09ad368b   # <-- Replace with your Volume ID
