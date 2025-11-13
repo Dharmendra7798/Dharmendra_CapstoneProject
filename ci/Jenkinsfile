@@ -31,47 +31,29 @@ pipeline {
                     echo "🔎 Running SonarQube Code Analysis..."
                     def scannerHome = tool name: "${SONARQUBE_SCANNER}", type: 'hudson.plugins.sonar.SonarRunnerInstallation'
 
+                    // Use host.docker.internal (works across all networks)
                     withSonarQubeEnv("${SONARQUBE_SERVER}") {
                         sh """
                             cd ${WORKSPACE}/Application-Code/backend
                             ${scannerHome}/bin/sonar-scanner \
                                 -Dsonar.projectKey=backend \
                                 -Dsonar.sources=. \
-                                -Dsonar.host.url=$SONAR_HOST_URL \
-                                -Dsonar.login=$SONARQUBE_TOKEN \
+                                -Dsonar.host.url=http://host.docker.internal:9000 \
+                                -Dsonar.login=${SONARQUBE_TOKEN} \
                                 -Dsonar.projectName="Backend Analysis"
 
                             cd ${WORKSPACE}/Application-Code/frontend
                             ${scannerHome}/bin/sonar-scanner \
                                 -Dsonar.projectKey=frontend \
                                 -Dsonar.sources=. \
-                                -Dsonar.host.url=$SONAR_HOST_URL \
-                                -Dsonar.login=$SONARQUBE_TOKEN \
+                                -Dsonar.host.url=http://host.docker.internal:9000 \
+                                -Dsonar.login=${SONARQUBE_TOKEN} \
                                 -Dsonar.projectName="Frontend Analysis"
                         """
                     }
                 }
             }
         }
-
-        // stage('Dependency Check') {
-        //     steps {
-        //         echo "🔍 Running OWASP Dependency Check via Docker..."
-        //         sh '''
-        //             docker run --rm \
-        //                 -v $(pwd):/src \
-        //                 -v $(pwd)/dependency-check-data:/usr/share/dependency-check/data \
-        //                 -v $(pwd)/dependency-check-report:/report \
-        //                 owasp/dependency-check:latest \
-        //                 --scan /src \
-        //                 --format "HTML" \
-        //                 --project "CapstoneProject" \
-        //                 --out /report
-
-        //             echo "✅ Dependency Check report generated at dependency-check-report/dependency-check-report.html"
-        //         '''
-        //     }
-        // }
 
         stage('File Scan') {
             steps {
