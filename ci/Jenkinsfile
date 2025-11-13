@@ -176,6 +176,7 @@ pipeline {
             echo "Frontend Image: ${FRONTEND_TAG}"
             cleanWs()
         }
+        
         failure {
             echo "❌ Build failed! Check Jenkins console output for details."
         }
