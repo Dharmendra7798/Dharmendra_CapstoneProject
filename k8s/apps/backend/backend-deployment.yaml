@@ -23,15 +23,13 @@ spec:
     spec:
       nodeSelector:
         role: backend
-      imagePullSecrets:
-        - name: ecr-registry-secret
       containers:
         - name: api
-          image: 688372068524.dkr.ecr.ap-south-1.amazonaws.com/capstone/backend-img:backend-234b627
+          image: kishan7798/backend-app:latest  # 👈 Jenkins will update this tag
           imagePullPolicy: Always
           env:
             - name: MONGO_CONN_STR
-              value: mongodb://mongodb-svc:27017/todo?directConnection=true
+              value: "mongodb://mongodb-svc:27017/todo?directConnection=true"
             - name: MONGO_USERNAME
               valueFrom:
                 secretKeyRef:

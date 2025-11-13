@@ -21,14 +21,11 @@ spec:
       labels:
         role: frontend
     spec:
-      # Ensure frontend runs only on frontend nodes
       nodeSelector:
         role: frontend
-      imagePullSecrets:
-        - name: ecr-registry-secret
       containers:
         - name: frontend
-          image: 688372068524.dkr.ecr.ap-south-1.amazonaws.com/capstone/frontend-img:frontend-234b627
+          image: kishan7798/frontend-app:latest  # 👈 Jenkins will update this tag
           imagePullPolicy: Always
           env:
             - name: REACT_APP_BACKEND_URL
