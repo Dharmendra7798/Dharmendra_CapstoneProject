@@ -1,20 +1,22 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: full-stack-app
+  name: three-tier-fullstack
   namespace: argocd
 spec:
   project: default
   source:
     repoURL: 'https://github.com/Dharmendra7798/Dharmendra_CapstoneProject.git'
     targetRevision: main
-    path: 'k8s'        
+    path: 'k8s'
     directory:
       recurse: true
   destination:
     server: 'https://kubernetes.default.svc'
-    namespace: default
+    namespace: three-tier   # ✅ FIXED
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
+    syncOptions:
+      - CreateNamespace=true   # ✅ ENSURE NAMESPACE CREATED
