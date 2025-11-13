@@ -8,7 +8,7 @@ spec:
   volumeMode: Filesystem
   accessModes:
     - ReadWriteOnce
-  storageClassName: gp2
+  storageClassName: gp3
   persistentVolumeReclaimPolicy: Retain
   csi:
     driver: ebs.csi.aws.com
