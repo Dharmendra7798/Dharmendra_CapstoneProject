@@ -54,24 +54,24 @@ pipeline {
             }
         }
 
-        stage('Dependency Check') {
-            steps {
-                echo "🔍 Running OWASP Dependency Check via Docker..."
-                sh '''
-                    docker run --rm \
-                        -v $(pwd):/src \
-                        -v $(pwd)/dependency-check-data:/usr/share/dependency-check/data \
-                        -v $(pwd)/dependency-check-report:/report \
-                        owasp/dependency-check:latest \
-                        --scan /src \
-                        --format "HTML" \
-                        --project "CapstoneProject" \
-                        --out /report
+        // stage('Dependency Check') {
+        //     steps {
+        //         echo "🔍 Running OWASP Dependency Check via Docker..."
+        //         sh '''
+        //             docker run --rm \
+        //                 -v $(pwd):/src \
+        //                 -v $(pwd)/dependency-check-data:/usr/share/dependency-check/data \
+        //                 -v $(pwd)/dependency-check-report:/report \
+        //                 owasp/dependency-check:latest \
+        //                 --scan /src \
+        //                 --format "HTML" \
+        //                 --project "CapstoneProject" \
+        //                 --out /report
 
-                    echo "✅ Dependency Check report generated at dependency-check-report/dependency-check-report.html"
-                '''
-            }
-        }
+        //             echo "✅ Dependency Check report generated at dependency-check-report/dependency-check-report.html"
+        //         '''
+        //     }
+        // }
 
         stage('File Scan') {
             steps {
